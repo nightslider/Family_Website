@@ -8,7 +8,13 @@ const defaultState = {
 };
 
 export function createInitialState() {
-  return { ...defaultState };
+  return {
+    ...defaultState,
+    users: [],
+    photos: [],
+    events: [],
+    milestones: [],
+  };
 }
 
 export function loadState(storage = globalThis.localStorage) {

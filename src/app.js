@@ -228,13 +228,16 @@ function renderPhotoForm(currentUser) {
     el('button', { text: 'Share photo', attrs: { type: 'submit' } }),
     message,
   );
+  const submitButton = form.querySelector('button[type="submit"]');
 
   form.addEventListener('submit', async (event) => {
     event.preventDefault();
+    submitButton.disabled = true;
     const [file] = fileInput.files;
 
     if (!file) {
       message.textContent = 'Choose a photo to upload.';
+      submitButton.disabled = false;
       return;
     }
 
@@ -252,6 +255,7 @@ function renderPhotoForm(currentUser) {
       render();
     } catch (error) {
       message.textContent = error.message;
+      submitButton.disabled = false;
     }
   });
 
@@ -273,27 +277,30 @@ function renderTimelineForm(collectionName, heading, titlePlaceholder) {
     el('button', { text: 'Save', attrs: { type: 'submit' } }),
     message,
   );
+  const submitButton = form.querySelector('button[type="submit"]');
 
-  form.addEventListener('submit', (event) => {
+  form.addEventListener('submit', async (event) => {
     event.preventDefault();
-    api(`/api/${collectionName}`, {
-      method: 'POST',
-      body: JSON.stringify({
-        title: titleInput.value,
-        date: dateInput.value,
-        description: descriptionInput.value,
-      }),
-    })
-      .then(refreshData)
-      .then(() => {
-        titleInput.value = '';
-        dateInput.value = '';
-        descriptionInput.value = '';
-      })
-      .then(render)
-      .catch((error) => {
-        message.textContent = error.message;
+    submitButton.disabled = true;
+
+    try {
+      await api(`/api/${collectionName}`, {
+        method: 'POST',
+        body: JSON.stringify({
+          title: titleInput.value,
+          date: dateInput.value,
+          description: descriptionInput.value,
+        }),
       });
+      await refreshData();
+      titleInput.value = '';
+      dateInput.value = '';
+      descriptionInput.value = '';
+      render();
+    } catch (error) {
+      message.textContent = error.message;
+      submitButton.disabled = false;
+    }
   });
 
   return form;
@@ -325,21 +332,24 @@ function renderPhotoCard(photo, currentUser) {
     commentInput,
     el('button', { text: 'Comment', attrs: { type: 'submit' } }),
   ]);
+  const submitButton = commentForm.querySelector('button[type="submit"]');
 
-  commentForm.addEventListener('submit', (event) => {
+  commentForm.addEventListener('submit', async (event) => {
     event.preventDefault();
-    api(`/api/photos/${encodeURIComponent(photo.id)}/comments`, {
-      method: 'POST',
-      body: JSON.stringify({ text: commentInput.value }),
-    })
-      .then(refreshData)
-      .then(() => {
-        commentInput.value = '';
-      })
-      .then(render)
-      .catch((error) => {
-        commentMessage.textContent = error.message;
+    submitButton.disabled = true;
+
+    try {
+      await api(`/api/photos/${encodeURIComponent(photo.id)}/comments`, {
+        method: 'POST',
+        body: JSON.stringify({ text: commentInput.value }),
       });
+      await refreshData();
+      commentInput.value = '';
+      render();
+    } catch (error) {
+      commentMessage.textContent = error.message;
+      submitButton.disabled = false;
+    }
   });
 
   return el('article', { className: 'photo-card' }, [

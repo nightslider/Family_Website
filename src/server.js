@@ -299,25 +299,39 @@ function readJson(request, maxBytes = 1024 * 1024) {
   return new Promise((resolveRequest, rejectRequest) => {
     let body = '';
     let bytesRead = 0;
+    let settled = false;
+
+    const rejectOnce = (error) => {
+      if (!settled) {
+        settled = true;
+        rejectRequest(error);
+      }
+    };
 
     request.on('data', (chunk) => {
       bytesRead += Buffer.byteLength(chunk);
       if (bytesRead > maxBytes) {
         request.destroy();
-        rejectRequest(new Error('Request body is too large.'));
+        rejectOnce(new Error('Request body is too large.'));
         return;
       }
 
       body += chunk;
     });
     request.on('end', () => {
+      if (settled) {
+        return;
+      }
+
       try {
-        resolveRequest(body ? JSON.parse(body) : {});
+        const parsedBody = body ? JSON.parse(body) : {};
+        settled = true;
+        resolveRequest(parsedBody);
       } catch {
-        rejectRequest(new Error('Invalid JSON.'));
+        rejectOnce(new Error('Invalid JSON.'));
       }
     });
-    request.on('error', rejectRequest);
+    request.on('error', rejectOnce);
   });
 }
 
