@@ -17,3 +17,5 @@ npm start
 Open <http://localhost:3000>. The first successful login creates the first family account. After signing in, use **Add family login** to create logins for other family members.
 
 Uploaded photos and family content are stored locally in `data/family-data.json`, which is ignored by git.
+
+To use the site on a phone or tablet, connect it to the same local network as this computer and open the local-network URL printed when the server starts. Admins can choose a photo from that device or take a new photo with its camera.

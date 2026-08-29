@@ -109,7 +109,7 @@ function renderLogin() {
   });
 
   form.append(
-    el('h1', { text: 'Family Website' }),
+    el('h1', { text: 'Hansen Family Website' }),
     el('p', {
       text: setupRequired ? 'Create the first family account.' : 'Sign in to view photos, reactions, comments, events, and milestones.',
     }),
@@ -157,7 +157,7 @@ function renderDashboard(user) {
     el('header', { className: 'hero' }, [
       el('div', {}, [
         el('p', { className: 'eyebrow', text: 'Private family space' }),
-        el('h1', { text: 'Share photos, moments, and memories' }),
+        el('h1', { text: 'Hansen Family Website' }),
         el('p', { text: `Welcome, ${user.name}. Only signed-in family members can see this page.` }),
       ]),
       el('button', {
@@ -233,26 +233,69 @@ function renderPhotoForm() {
   const form = el('form', { className: 'card' });
   const titleInput = el('input', { attrs: { placeholder: 'Photo title', required: '' } });
   const descriptionInput = el('textarea', { attrs: { placeholder: 'Tell the story behind this photo' } });
-  const fileInput = el('input', { attrs: { type: 'file', accept: 'image/*', required: '' } });
+  const libraryFileInput = el('input', { attrs: { type: 'file', accept: 'image/*', 'aria-label': 'Choose a photo from this device' } });
+  const cameraFileInput = el('input', { attrs: { type: 'file', accept: 'image/*', capture: 'environment', 'aria-label': 'Take a photo with this device camera' } });
   const message = el('p', { className: 'form-message', attrs: { role: 'status' } });
   const submitButton = el('button', { text: 'Share photo', attrs: { type: 'submit' } });
+  let droppedFile = null;
+  const dropZone = el('div', {
+    className: 'photo-drop-zone',
+    text: 'Drop a photo here or select one from this device',
+    attrs: { role: 'button', tabindex: '0' },
+    on: {
+      click: () => libraryFileInput.click(),
+      keydown: (event) => {
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault();
+          libraryFileInput.click();
+        }
+      },
+      dragover: (event) => {
+        event.preventDefault();
+        dropZone.classList.add('dragging');
+      },
+      dragleave: () => dropZone.classList.remove('dragging'),
+      drop: (event) => {
+        event.preventDefault();
+        dropZone.classList.remove('dragging');
+        const file = event.dataTransfer.files[0];
+        if (!file?.type.startsWith('image/')) {
+          message.textContent = 'Drop an image file to upload it.';
+          return;
+        }
+        droppedFile = file;
+        dropZone.textContent = `Selected: ${file.name}`;
+      },
+    },
+  });
+  const googlePhotosButton = el('button', {
+    className: 'secondary',
+    attrs: { type: 'button' },
+    on: { click: () => importFromGooglePhotos(message, googlePhotosButton) },
+  }, [
+    el('img', { attrs: { src: 'img/google_photos.svg', alt: '' } }),
+    document.createTextNode('Add from Google Photos'),
+  ]);
 
   form.append(
     el('h2', { text: 'Upload a photo' }),
     titleInput,
     descriptionInput,
-    fileInput,
+    dropZone,
+    libraryFileInput,
+    cameraFileInput,
     submitButton,
+    googlePhotosButton,
     message,
   );
 
   form.addEventListener('submit', async (event) => {
     event.preventDefault();
     submitButton.disabled = true;
-    const [file] = fileInput.files;
+    const file = droppedFile ?? cameraFileInput.files[0] ?? libraryFileInput.files[0];
 
     if (!file) {
-      message.textContent = 'Choose a photo to upload.';
+      message.textContent = 'Choose a photo or take one with your camera.';
       submitButton.disabled = false;
       return;
     }
@@ -276,6 +319,50 @@ function renderPhotoForm() {
   });
 
   return form;
+}
+
+async function importFromGooglePhotos(message, button) {
+  const pickerWindow = window.open('', 'googlePhotosPicker', 'popup,width=720,height=720');
+  if (!pickerWindow) {
+    message.textContent = 'Allow pop-ups to choose photos from Google Photos.';
+    return;
+  }
+
+  button.disabled = true;
+  try {
+    const result = await api('/api/google-photos/start', { method: 'POST' });
+    pickerWindow.location.href = result.authorizationUrl ?? `${result.pickerUri}/autoclose`;
+    message.textContent = 'Choose photos in the Google Photos window, then select Done.';
+    await waitForGooglePhotosSelection();
+    const imported = await api('/api/google-photos/import', { method: 'POST' });
+    await refreshData();
+    message.textContent = `${imported.imported} photo${imported.imported === 1 ? '' : 's'} imported.`;
+    render();
+  } catch (error) {
+    message.textContent = error.message;
+    button.disabled = false;
+  }
+}
+
+function waitForGooglePhotosSelection() {
+  return new Promise((resolve, reject) => {
+    const startedAt = Date.now();
+    const timer = window.setInterval(async () => {
+      try {
+        const status = await api('/api/google-photos/status');
+        if (status.ready) {
+          window.clearInterval(timer);
+          resolve();
+        } else if (Date.now() - startedAt > 15 * 60 * 1000) {
+          window.clearInterval(timer);
+          reject(new Error('Google Photos selection timed out.'));
+        }
+      } catch (error) {
+        window.clearInterval(timer);
+        reject(error);
+      }
+    }, 2000);
+  });
 }
 
 function renderTimelineForm(collectionName, heading, titlePlaceholder) {
