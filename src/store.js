@@ -156,7 +156,7 @@ export function addTimelineItem(state, collectionName, item) {
 
   return {
     ...normalized,
-    [collectionName]: [nextItem, ...collection].sort((a, b) => (a.date === b.date ? 0 : b.date > a.date ? 1 : -1)),
+    [collectionName]: [nextItem, ...collection].sort((a, b) => Date.parse(b.date) - Date.parse(a.date)),
   };
 }
 

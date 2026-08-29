@@ -202,7 +202,7 @@ async function handleApi(request, response) {
     const title = String(body.title ?? '').trim();
     const date = String(body.date ?? '');
 
-    if (!title || !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+    if (!title || !isValidDate(date)) {
       sendJson(response, 400, { error: 'Enter a title and date.' });
       return;
     }
@@ -237,7 +237,7 @@ function createFirstUser(body, response) {
   }, { autoSignIn: true });
   saveData();
 
-  const user = state.users.find((candidate) => candidate.id === state.currentUserId);
+  const user = state.users.find((candidate) => candidate.name.toLowerCase() === name.toLowerCase());
   createSession(response, user);
   sendJson(response, 201, { user: publicUser(user) });
 }
@@ -254,6 +254,17 @@ function verifyPassword(password, user) {
   const expected = Buffer.from(user.passwordHash, 'hex');
   const actual = pbkdf2Sync(password, user.salt, 310000, 32, 'sha256');
   return expected.length === actual.length && timingSafeEqual(expected, actual);
+}
+
+function isValidDate(value) {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
+  if (!match) {
+    return false;
+  }
+
+  const [, year, month, day] = match.map(Number);
+  const date = new Date(Date.UTC(year, month - 1, day));
+  return date.getUTCFullYear() === year && date.getUTCMonth() === month - 1 && date.getUTCDate() === day;
 }
 
 function createSession(response, user) {

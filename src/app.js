@@ -241,8 +241,8 @@ function renderPhotoForm() {
       return;
     }
 
-    const imageData = await readFile(file);
     try {
+      const imageData = await readFile(file);
       await api('/api/photos', {
         method: 'POST',
         body: JSON.stringify({
