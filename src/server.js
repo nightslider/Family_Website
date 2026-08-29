@@ -76,14 +76,15 @@ async function handleApi(request, response) {
 
   if (request.method === 'POST' && pathname === '/api/login') {
     const body = await readJson(request);
+
+    if (state.users.length === 0) {
+      createFirstUser(body, response);
+      return;
+    }
+
     const user = state.users.find((candidate) => candidate.name.toLowerCase() === String(body.name ?? '').trim().toLowerCase());
 
     if (!user || !verifyPassword(String(body.password ?? ''), user)) {
-      if (state.users.length === 0) {
-        createFirstUser(body, response);
-        return;
-      }
-
       sendJson(response, 401, { error: 'That login did not match a family account.' });
       return;
     }
@@ -131,8 +132,8 @@ async function handleApi(request, response) {
 
     state = {
       ...addUser(state, {
-      name,
-      ...hashPassword(password),
+        name,
+        ...hashPassword(password),
       }),
       currentUserId: currentUser.id,
     };
@@ -235,7 +236,7 @@ function createFirstUser(body, response) {
   });
   saveData();
 
-  const user = state.users.at(-1);
+  const user = state.users.find((candidate) => candidate.id === state.currentUserId);
   createSession(response, user);
   sendJson(response, 201, { user: publicUser(user) });
 }

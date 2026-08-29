@@ -166,8 +166,8 @@ function renderDashboard(user) {
     el('section', { className: 'grid two-column' }, [
       renderUserForm(),
       renderPhotoForm(user),
-      renderTimelineForm(user, 'events', 'Add family event', 'Event title'),
-      renderTimelineForm(user, 'milestones', 'Add milestone', 'Milestone title'),
+      renderTimelineForm('events', 'Add family event', 'Event title'),
+      renderTimelineForm('milestones', 'Add milestone', 'Milestone title'),
     ]),
     renderGallery(user),
     renderTimeline('Upcoming and recent events', state.events),
@@ -243,10 +243,10 @@ function renderPhotoForm(currentUser) {
       await api('/api/photos', {
         method: 'POST',
         body: JSON.stringify({
-        title: titleInput.value,
-        description: descriptionInput.value,
-        imageData,
-      }),
+          title: titleInput.value,
+          description: descriptionInput.value,
+          imageData,
+        }),
       });
       await refreshData();
       render();
@@ -258,11 +258,12 @@ function renderPhotoForm(currentUser) {
   return form;
 }
 
-function renderTimelineForm(currentUser, collectionName, heading, titlePlaceholder) {
+function renderTimelineForm(collectionName, heading, titlePlaceholder) {
   const form = el('form', { className: 'card' });
   const titleInput = el('input', { attrs: { placeholder: titlePlaceholder, required: '' } });
   const dateInput = el('input', { attrs: { type: 'date', required: '' } });
   const descriptionInput = el('textarea', { attrs: { placeholder: 'Details' } });
+  const message = el('p', { className: 'form-message', attrs: { role: 'status' } });
 
   form.append(
     el('h2', { text: heading }),
@@ -270,6 +271,7 @@ function renderTimelineForm(currentUser, collectionName, heading, titlePlacehold
     dateInput,
     descriptionInput,
     el('button', { text: 'Save', attrs: { type: 'submit' } }),
+    message,
   );
 
   form.addEventListener('submit', (event) => {
@@ -284,7 +286,9 @@ function renderTimelineForm(currentUser, collectionName, heading, titlePlacehold
     })
       .then(refreshData)
       .then(render)
-      .catch(() => {});
+      .catch((error) => {
+        message.textContent = error.message;
+      });
   });
 
   return form;
@@ -311,6 +315,7 @@ function renderGallery(currentUser) {
 
 function renderPhotoCard(photo, currentUser) {
   const commentInput = el('input', { attrs: { placeholder: 'Write a comment', required: '' } });
+  const commentMessage = el('p', { className: 'form-message compact', attrs: { role: 'status' } });
   const commentForm = el('form', { className: 'comment-form' }, [
     commentInput,
     el('button', { text: 'Comment', attrs: { type: 'submit' } }),
@@ -324,7 +329,9 @@ function renderPhotoCard(photo, currentUser) {
     })
       .then(refreshData)
       .then(render)
-      .catch(() => {});
+      .catch((error) => {
+        commentMessage.textContent = error.message;
+      });
   });
 
   return el('article', { className: 'photo-card' }, [
@@ -336,6 +343,7 @@ function renderPhotoCard(photo, currentUser) {
       el('div', { className: 'reaction-row' }, reactions.map((emoji) => renderReactionButton(photo, emoji, currentUser))),
       renderComments(photo),
       commentForm,
+      commentMessage,
     ]),
   ]);
 }

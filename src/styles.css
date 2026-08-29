@@ -1,8 +1,11 @@
 :root {
-  color: #263238;
+  color: #eef7ff;
   font-family:
     Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  background: #f8f2eb;
+  background:
+    radial-gradient(circle at top left, rgba(121, 40, 202, 0.38), transparent 32rem),
+    radial-gradient(circle at bottom right, rgba(0, 242, 254, 0.22), transparent 30rem),
+    linear-gradient(135deg, #08111f 0%, #14213d 52%, #201335 100%);
 }
 
 * {
@@ -14,26 +17,47 @@ body {
   min-height: 100vh;
 }
 
+body::before {
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.035) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.035) 1px, transparent 1px);
+  background-size: 42px 42px;
+  content: "";
+  inset: 0;
+  mask-image: linear-gradient(to bottom, rgba(0, 0, 0, 0.8), transparent);
+  pointer-events: none;
+  position: fixed;
+}
+
 button,
 input,
 textarea {
-  border: 1px solid #d9c8b7;
+  background: rgba(8, 17, 31, 0.58);
+  border: 1px solid rgba(166, 220, 255, 0.24);
   border-radius: 0.75rem;
+  color: #eef7ff;
   font: inherit;
   padding: 0.85rem 1rem;
 }
 
+input::placeholder,
+textarea::placeholder {
+  color: rgba(238, 247, 255, 0.58);
+}
+
 button {
-  background: #7f4f24;
+  background: linear-gradient(135deg, #00d4ff, #a855f7 55%, #ff4ecd);
   border: 0;
   color: #fff;
   cursor: pointer;
   font-weight: 700;
+  box-shadow: 0 12px 30px rgba(0, 212, 255, 0.22);
 }
 
 button:hover,
 button:focus-visible {
-  background: #5f3a1a;
+  filter: brightness(1.12);
+  transform: translateY(-1px);
 }
 
 textarea {
@@ -59,10 +83,11 @@ textarea {
 .photo-card,
 .timeline-item,
 .hero {
-  background: rgba(255, 255, 255, 0.92);
-  border: 1px solid #eadccc;
+  backdrop-filter: blur(22px) saturate(145%);
+  background: linear-gradient(145deg, rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0.07));
+  border: 1px solid rgba(255, 255, 255, 0.18);
   border-radius: 1.5rem;
-  box-shadow: 0 20px 45px rgba(95, 58, 26, 0.12);
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.28);
 }
 
 .card,
@@ -95,14 +120,19 @@ textarea {
 
 .eyebrow,
 .meta {
-  color: #7d6b5a;
+  color: rgba(238, 247, 255, 0.68);
   font-size: 0.9rem;
+}
+
+.eyebrow {
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
 }
 
 .secondary,
 .reaction {
-  background: #f3e4d3;
-  color: #5f3a1a;
+  background: rgba(255, 255, 255, 0.12);
+  color: #eef7ff;
 }
 
 .secondary:hover,
@@ -110,8 +140,8 @@ textarea {
 .reaction:hover,
 .reaction:focus-visible,
 .reaction.active {
-  background: #d6a463;
-  color: #2c1a0b;
+  background: rgba(0, 212, 255, 0.25);
+  color: #fff;
 }
 
 .grid {
@@ -143,6 +173,20 @@ textarea {
   overflow: hidden;
 }
 
+.photo-card,
+.timeline-item {
+  position: relative;
+}
+
+.photo-card::after,
+.timeline-item::after {
+  background: linear-gradient(90deg, #00d4ff, #ff4ecd);
+  content: "";
+  height: 3px;
+  inset: 0 0 auto;
+  position: absolute;
+}
+
 .photo-card img {
   aspect-ratio: 4 / 3;
   display: block;
@@ -171,7 +215,7 @@ textarea {
 }
 
 .comments li {
-  border-top: 1px solid #f0e4d8;
+  border-top: 1px solid rgba(255, 255, 255, 0.12);
   padding: 0.75rem 0;
 }
 
@@ -185,13 +229,13 @@ textarea {
 }
 
 .timeline-item time {
-  color: #7f4f24;
+  color: #7ce7ff;
   font-weight: 700;
 }
 
 .empty-state,
 .form-message {
-  color: #7d6b5a;
+  color: rgba(238, 247, 255, 0.72);
 }
 
 .compact {
