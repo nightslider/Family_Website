@@ -141,14 +141,14 @@ function renderLogin() {
   app.append(el('main', { className: 'auth-shell' }, [form]));
 }
 
-function renderDashboard(currentUser) {
+function renderDashboard(user) {
   const main = el('main', { className: 'page-shell' });
   main.append(
     el('header', { className: 'hero' }, [
       el('div', {}, [
         el('p', { className: 'eyebrow', text: 'Private family space' }),
         el('h1', { text: 'Share photos, moments, and memories' }),
-        el('p', { text: `Welcome, ${currentUser.name}. Only signed-in family members can see this page.` }),
+        el('p', { text: `Welcome, ${user.name}. Only signed-in family members can see this page.` }),
       ]),
       el('button', {
         className: 'secondary',
@@ -165,11 +165,11 @@ function renderDashboard(currentUser) {
     ]),
     el('section', { className: 'grid two-column' }, [
       renderUserForm(),
-      renderPhotoForm(currentUser),
-      renderTimelineForm(currentUser, 'events', 'Add family event', 'Event title'),
-      renderTimelineForm(currentUser, 'milestones', 'Add milestone', 'Milestone title'),
+      renderPhotoForm(user),
+      renderTimelineForm(user, 'events', 'Add family event', 'Event title'),
+      renderTimelineForm(user, 'milestones', 'Add milestone', 'Milestone title'),
     ]),
-    renderGallery(currentUser),
+    renderGallery(user),
     renderTimeline('Upcoming and recent events', state.events),
     renderTimeline('Family milestones', state.milestones),
   );

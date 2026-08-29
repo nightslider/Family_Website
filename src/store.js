@@ -1,6 +1,5 @@
 const STORAGE_KEY = 'familyWebsiteState';
-
-export const defaultState = Object.freeze({
+const defaultState = Object.freeze({
   users: [],
   currentUserId: null,
   photos: [],
@@ -9,13 +8,7 @@ export const defaultState = Object.freeze({
 });
 
 export function createInitialState() {
-  return {
-    users: [],
-    currentUserId: null,
-    photos: [],
-    events: [],
-    milestones: [],
-  };
+  return { ...defaultState };
 }
 
 export function loadState(storage = globalThis.localStorage) {

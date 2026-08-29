@@ -16,6 +16,7 @@ const port = Number.parseInt(process.env.PORT ?? '3000', 10);
 const sessions = new Map();
 const reactions = ['❤️', '😂', '🎉', '🙏', '😍'];
 const publicFiles = new Set(['/index.html', '/src/app.js', '/src/store.js', '/src/styles.css']);
+const secureCookie = process.env.NODE_ENV === 'production' ? '; Secure' : '';
 
 let state = loadData();
 
@@ -128,11 +129,13 @@ async function handleApi(request, response) {
       return;
     }
 
-    state = addUser(state, {
+    state = {
+      ...addUser(state, {
       name,
       ...hashPassword(password),
-    });
-    state.currentUserId = currentUser.id;
+      }),
+      currentUserId: currentUser.id,
+    };
     saveData();
     sendJson(response, 201, { users: state.users.map(publicUser) });
     return;
@@ -254,7 +257,7 @@ function verifyPassword(password, user) {
 function createSession(response, user) {
   const sessionId = randomBytes(32).toString('hex');
   sessions.set(sessionId, user.id);
-  response.setHeader('Set-Cookie', `family_session=${sessionId}; HttpOnly; SameSite=Strict; Path=/; Max-Age=604800`);
+  response.setHeader('Set-Cookie', `family_session=${sessionId}; HttpOnly; SameSite=Strict; Path=/; Max-Age=604800${secureCookie}`);
 }
 
 function clearSession(request, response) {
@@ -262,7 +265,7 @@ function clearSession(request, response) {
   if (sessionId) {
     sessions.delete(sessionId);
   }
-  response.setHeader('Set-Cookie', 'family_session=; HttpOnly; SameSite=Strict; Path=/; Max-Age=0');
+  response.setHeader('Set-Cookie', `family_session=; HttpOnly; SameSite=Strict; Path=/; Max-Age=0${secureCookie}`);
 }
 
 function getSessionUser(request) {
