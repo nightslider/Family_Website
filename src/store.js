@@ -1,11 +1,11 @@
 const STORAGE_KEY = 'familyWebsiteState';
-const defaultState = Object.freeze({
+const defaultState = {
   users: [],
   currentUserId: null,
   photos: [],
   events: [],
   milestones: [],
-});
+};
 
 export function createInitialState() {
   return { ...defaultState };

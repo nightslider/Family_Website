@@ -80,7 +80,7 @@ test('timeline items are sorted newest first', () => {
     id: 'event-2',
     title: 'Winter dinner',
     date: '2026-12-20',
-    description: 'Grandma’s house',
+    description: "Grandma's house",
     createdBy: 'Casey',
   });
 

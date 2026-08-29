@@ -13,6 +13,7 @@ const dataFile = process.env.FAMILY_DATA_FILE
   : join(rootDirectory, 'data', 'family-data.json');
 const dataDirectory = resolve(dataFile, '..');
 const port = Number.parseInt(process.env.PORT ?? '3000', 10);
+// Sessions are intentionally in memory; restarting the server signs everyone out.
 const sessions = new Map();
 const reactions = ['❤️', '😂', '🎉', '🙏', '😍'];
 const publicFiles = new Set(['/index.html', '/src/app.js', '/src/store.js', '/src/styles.css']);
@@ -301,11 +302,13 @@ function readJson(request, maxBytes = 1024 * 1024) {
 
     request.on('data', (chunk) => {
       bytesRead += Buffer.byteLength(chunk);
-      body += chunk;
       if (bytesRead > maxBytes) {
         request.destroy();
         rejectRequest(new Error('Request body is too large.'));
+        return;
       }
+
+      body += chunk;
     });
     request.on('end', () => {
       try {

@@ -289,7 +289,6 @@ function renderTimelineForm(collectionName, heading, titlePlaceholder) {
         titleInput.value = '';
         dateInput.value = '';
         descriptionInput.value = '';
-        message.textContent = `${heading} saved.`;
       })
       .then(render)
       .catch((error) => {
@@ -336,7 +335,6 @@ function renderPhotoCard(photo, currentUser) {
       .then(refreshData)
       .then(() => {
         commentInput.value = '';
-        commentMessage.textContent = '';
       })
       .then(render)
       .catch((error) => {
