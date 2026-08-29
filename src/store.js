@@ -1,17 +1,10 @@
 const STORAGE_KEY = 'familyWebsiteState';
-const defaultState = {
-  users: [],
-  currentUserId: null,
-  photos: [],
-  events: [],
-  milestones: [],
-};
 
 export function createInitialState() {
   return {
-    ...defaultState,
     users: [],
     photos: [],
+    currentUserId: null,
     events: [],
     milestones: [],
   };

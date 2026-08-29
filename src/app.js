@@ -165,7 +165,7 @@ function renderDashboard(user) {
     ]),
     el('section', { className: 'grid two-column' }, [
       renderUserForm(),
-      renderPhotoForm(user),
+      renderPhotoForm(),
       renderTimelineForm('events', 'Add family event', 'Event title'),
       renderTimelineForm('milestones', 'Add milestone', 'Milestone title'),
     ]),
@@ -213,22 +213,22 @@ function renderUserForm() {
   return form;
 }
 
-function renderPhotoForm(currentUser) {
+function renderPhotoForm() {
   const form = el('form', { className: 'card' });
   const titleInput = el('input', { attrs: { placeholder: 'Photo title', required: '' } });
   const descriptionInput = el('textarea', { attrs: { placeholder: 'Tell the story behind this photo' } });
   const fileInput = el('input', { attrs: { type: 'file', accept: 'image/*', required: '' } });
   const message = el('p', { className: 'form-message', attrs: { role: 'status' } });
+  const submitButton = el('button', { text: 'Share photo', attrs: { type: 'submit' } });
 
   form.append(
     el('h2', { text: 'Upload a photo' }),
     titleInput,
     descriptionInput,
     fileInput,
-    el('button', { text: 'Share photo', attrs: { type: 'submit' } }),
+    submitButton,
     message,
   );
-  const submitButton = form.querySelector('button[type="submit"]');
 
   form.addEventListener('submit', async (event) => {
     event.preventDefault();
@@ -268,16 +268,16 @@ function renderTimelineForm(collectionName, heading, titlePlaceholder) {
   const dateInput = el('input', { attrs: { type: 'date', required: '' } });
   const descriptionInput = el('textarea', { attrs: { placeholder: 'Details' } });
   const message = el('p', { className: 'form-message', attrs: { role: 'status' } });
+  const submitButton = el('button', { text: 'Save', attrs: { type: 'submit' } });
 
   form.append(
     el('h2', { text: heading }),
     titleInput,
     dateInput,
     descriptionInput,
-    el('button', { text: 'Save', attrs: { type: 'submit' } }),
+    submitButton,
     message,
   );
-  const submitButton = form.querySelector('button[type="submit"]');
 
   form.addEventListener('submit', async (event) => {
     event.preventDefault();
@@ -328,11 +328,11 @@ function renderGallery(currentUser) {
 function renderPhotoCard(photo, currentUser) {
   const commentInput = el('input', { attrs: { placeholder: 'Write a comment', required: '' } });
   const commentMessage = el('p', { className: 'form-message compact', attrs: { role: 'status' } });
+  const submitButton = el('button', { text: 'Comment', attrs: { type: 'submit' } });
   const commentForm = el('form', { className: 'comment-form' }, [
     commentInput,
-    el('button', { text: 'Comment', attrs: { type: 'submit' } }),
+    submitButton,
   ]);
-  const submitButton = commentForm.querySelector('button[type="submit"]');
 
   commentForm.addEventListener('submit', async (event) => {
     event.preventDefault();

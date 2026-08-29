@@ -316,7 +316,7 @@ function readJson(request, maxBytes = 1024 * 1024) {
         return;
       }
 
-      body += chunk;
+      body += chunk.toString('utf8');
     });
     request.on('end', () => {
       if (settled) {
