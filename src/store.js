@@ -53,7 +53,7 @@ export function createId(prefix = 'item') {
   return `${prefix}-${random}`;
 }
 
-export function addUser(state, user) {
+export function addUser(state, user, options = {}) {
   const normalized = normalizeState(state);
   const nextUser = {
     id: user.id ?? createId('user'),
@@ -64,7 +64,7 @@ export function addUser(state, user) {
 
   return {
     ...normalized,
-    currentUserId: nextUser.id,
+    currentUserId: options.autoSignIn ? nextUser.id : normalized.currentUserId,
     users: [...normalized.users, nextUser],
   };
 }
@@ -157,7 +157,7 @@ export function addTimelineItem(state, collectionName, item) {
 
   return {
     ...normalized,
-    [collectionName]: [nextItem, ...collection].sort((a, b) => b.date.localeCompare(a.date)),
+    [collectionName]: [nextItem, ...collection].sort((a, b) => (a.date === b.date ? 0 : b.date > a.date ? 1 : -1)),
   };
 }
 

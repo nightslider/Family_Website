@@ -285,6 +285,12 @@ function renderTimelineForm(collectionName, heading, titlePlaceholder) {
       }),
     })
       .then(refreshData)
+      .then(() => {
+        titleInput.value = '';
+        dateInput.value = '';
+        descriptionInput.value = '';
+        message.textContent = `${heading} saved.`;
+      })
       .then(render)
       .catch((error) => {
         message.textContent = error.message;
@@ -328,6 +334,10 @@ function renderPhotoCard(photo, currentUser) {
       body: JSON.stringify({ text: commentInput.value }),
     })
       .then(refreshData)
+      .then(() => {
+        commentInput.value = '';
+        commentMessage.textContent = '';
+      })
       .then(render)
       .catch((error) => {
         commentMessage.textContent = error.message;

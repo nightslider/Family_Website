@@ -233,7 +233,7 @@ function createFirstUser(body, response) {
   state = addUser(state, {
     name,
     ...hashPassword(password),
-  });
+  }, { autoSignIn: true });
   saveData();
 
   const user = state.users.find((candidate) => candidate.id === state.currentUserId);
@@ -297,10 +297,12 @@ function publicUser(user) {
 function readJson(request, maxBytes = 1024 * 1024) {
   return new Promise((resolveRequest, rejectRequest) => {
     let body = '';
+    let bytesRead = 0;
 
     request.on('data', (chunk) => {
+      bytesRead += Buffer.byteLength(chunk);
       body += chunk;
-      if (Buffer.byteLength(body) > maxBytes) {
+      if (bytesRead > maxBytes) {
         request.destroy();
         rejectRequest(new Error('Request body is too large.'));
       }
