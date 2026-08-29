@@ -71,7 +71,10 @@ async function handleApi(request, response) {
   const currentUser = getSessionUser(request);
 
   if (request.method === 'GET' && pathname === '/api/me') {
-    sendJson(response, currentUser ? 200 : 401, currentUser ? { user: publicUser(currentUser) } : { error: 'Please log in.' });
+    sendJson(response, currentUser ? 200 : 401, currentUser ? { user: publicUser(currentUser) } : {
+      error: 'Please log in.',
+      setupRequired: state.users.length === 0,
+    });
     return;
   }
 
@@ -83,7 +86,11 @@ async function handleApi(request, response) {
       return;
     }
 
-    const user = state.users.find((candidate) => candidate.name.toLowerCase() === String(body.name ?? '').trim().toLowerCase());
+    const username = String(body.username ?? '').trim();
+    const user = state.users.find((candidate) => {
+      const loginName = candidate.username ?? candidate.name;
+      return loginName.toLowerCase() === username.toLowerCase();
+    });
 
     if (!user || !verifyPassword(String(body.password ?? ''), user)) {
       sendJson(response, 401, { error: 'That login did not match a family account.' });
@@ -118,22 +125,23 @@ async function handleApi(request, response) {
 
   if (request.method === 'POST' && pathname === '/api/users') {
     const body = await readJson(request);
-    const name = String(body.name ?? '').trim();
+    const account = accountDetails(body);
     const password = String(body.password ?? '');
 
-    if (!name || password.length < 8) {
-      sendJson(response, 400, { error: 'Enter a name and a password with at least 8 characters.' });
+    if (!account || password.length < 8) {
+      sendJson(response, 400, { error: 'Enter first name, last name, username, and a password with at least 8 characters.' });
       return;
     }
 
-    if (state.users.some((user) => user.name.toLowerCase() === name.toLowerCase())) {
-      sendJson(response, 409, { error: 'That family member already has a login.' });
+    if (state.users.some((user) => (user.username ?? user.name).toLowerCase() === account.username.toLowerCase())) {
+      sendJson(response, 409, { error: 'That username is already in use.' });
       return;
     }
 
     state = {
       ...addUser(state, {
-        name,
+        ...account,
+        isAdmin: false,
         ...hashPassword(password),
       }),
       currentUserId: currentUser.id,
@@ -144,6 +152,11 @@ async function handleApi(request, response) {
   }
 
   if (request.method === 'POST' && pathname === '/api/photos') {
+    if (!currentUser.isAdmin) {
+      sendJson(response, 403, { error: 'Only administrators can upload photos.' });
+      return;
+    }
+
     const body = await readJson(request, 8 * 1024 * 1024);
     const imageData = String(body.imageData ?? '');
 
@@ -223,23 +236,36 @@ async function handleApi(request, response) {
 }
 
 function createFirstUser(body, response) {
-  const name = String(body.name ?? '').trim();
+  const account = accountDetails(body);
   const password = String(body.password ?? '');
 
-  if (!name || password.length < 8) {
-    sendJson(response, 400, { error: 'Create the first family login with a name and password of at least 8 characters.' });
+  if (!account || password.length < 8) {
+    sendJson(response, 400, { error: 'Enter first name, last name, username, and a password with at least 8 characters.' });
     return;
   }
 
   state = addUser(state, {
-    name,
+    ...account,
+    isAdmin: true,
     ...hashPassword(password),
   }, { autoSignIn: true });
   saveData();
 
-  const user = state.users.find((candidate) => candidate.name.toLowerCase() === name.toLowerCase());
+  const user = state.users.find((candidate) => candidate.username === account.username);
   createSession(response, user);
   sendJson(response, 201, { user: publicUser(user) });
+}
+
+function accountDetails(body) {
+  const firstName = String(body.firstName ?? '').trim();
+  const lastName = String(body.lastName ?? '').trim();
+  const username = String(body.username ?? '').trim();
+
+  if (!firstName || !lastName || !username) {
+    return null;
+  }
+
+  return { firstName, lastName, username, name: `${firstName} ${lastName}` };
 }
 
 function hashPassword(password) {
@@ -303,6 +329,7 @@ function publicUser(user) {
   return {
     id: user.id,
     name: user.name,
+    isAdmin: user.isAdmin === true,
   };
 }
 

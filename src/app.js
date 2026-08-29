@@ -5,6 +5,7 @@ import {
 const reactions = ['❤️', '😂', '🎉', '🙏', '😍'];
 let state = normalizeState();
 let currentUser = null;
+let setupRequired = false;
 
 const app = document.querySelector('#app');
 
@@ -21,7 +22,9 @@ async function api(path, options = {}) {
   const payload = await response.json().catch(() => ({}));
 
   if (!response.ok) {
-    throw new Error(payload.error ?? 'Something went wrong.');
+    const error = new Error(payload.error ?? 'Something went wrong.');
+    error.setupRequired = payload.setupRequired;
+    throw error;
   }
 
   return payload;
@@ -37,9 +40,10 @@ async function loadSession() {
     const session = await api('/api/me');
     currentUser = session.user;
     await refreshData();
-  } catch {
+  } catch (error) {
     currentUser = null;
     state = normalizeState();
+    setupRequired = error.setupRequired === true;
   }
 
   render();
@@ -84,14 +88,16 @@ function render() {
 function renderLogin() {
   const form = el('form', { className: 'card auth-card' });
   const message = el('p', { className: 'form-message', attrs: { role: 'status' } });
-  const nameInput = el('input', {
+  const usernameInput = el('input', {
     attrs: {
-      id: 'name',
+      id: 'username',
       autocomplete: 'username',
-      placeholder: 'Your name',
+      placeholder: 'Username',
       required: '',
     },
   });
+  const firstNameInput = el('input', { attrs: { id: 'first-name', autocomplete: 'given-name', placeholder: 'First name', required: '' } });
+  const lastNameInput = el('input', { attrs: { id: 'last-name', autocomplete: 'family-name', placeholder: 'Last name', required: '' } });
   const passwordInput = el('input', {
     attrs: {
       id: 'password',
@@ -105,30 +111,34 @@ function renderLogin() {
   form.append(
     el('h1', { text: 'Family Website' }),
     el('p', {
-      text: 'Sign in to view photos, reactions, comments, events, and milestones.',
+      text: setupRequired ? 'Create the first family account.' : 'Sign in to view photos, reactions, comments, events, and milestones.',
     }),
-    el('label', { attrs: { for: 'name' }, text: 'Name' }),
-    nameInput,
+    ...(setupRequired ? [
+      el('label', { attrs: { for: 'first-name' }, text: 'First name' }), firstNameInput,
+      el('label', { attrs: { for: 'last-name' }, text: 'Last name' }), lastNameInput,
+    ] : []),
+    el('label', { attrs: { for: 'username' }, text: 'Username' }),
+    usernameInput,
     el('label', { attrs: { for: 'password' }, text: 'Password' }),
     passwordInput,
-    el('button', { text: 'Log in', attrs: { type: 'submit' } }),
+    el('button', { text: setupRequired ? 'Create account' : 'Log in', attrs: { type: 'submit' } }),
     message,
   );
 
   form.addEventListener('submit', async (event) => {
     event.preventDefault();
-    const name = nameInput.value.trim();
+    const username = usernameInput.value.trim();
     const password = passwordInput.value;
 
-    if (!name || !password) {
-      message.textContent = 'Please enter your name and password.';
+    if (!username || !password || (setupRequired && (!firstNameInput.value.trim() || !lastNameInput.value.trim()))) {
+      message.textContent = 'Please complete every field.';
       return;
     }
 
     try {
       const session = await api('/api/login', {
         method: 'POST',
-        body: JSON.stringify({ name, password }),
+        body: JSON.stringify({ username, password, firstName: firstNameInput.value, lastName: lastNameInput.value }),
       });
       currentUser = session.user;
       await refreshData();
@@ -165,7 +175,7 @@ function renderDashboard(user) {
     ]),
     el('section', { className: 'grid two-column' }, [
       renderUserForm(),
-      renderPhotoForm(),
+      user.isAdmin ? renderPhotoForm() : null,
       renderTimelineForm('events', 'Add family event', 'Event title'),
       renderTimelineForm('milestones', 'Add milestone', 'Milestone title'),
     ]),
@@ -179,7 +189,9 @@ function renderDashboard(user) {
 
 function renderUserForm() {
   const form = el('form', { className: 'card' });
-  const nameInput = el('input', { attrs: { placeholder: 'Family member name', autocomplete: 'off', required: '' } });
+  const firstNameInput = el('input', { attrs: { placeholder: 'First name', autocomplete: 'given-name', required: '' } });
+  const lastNameInput = el('input', { attrs: { placeholder: 'Last name', autocomplete: 'family-name', required: '' } });
+  const usernameInput = el('input', { attrs: { placeholder: 'Username', autocomplete: 'username', required: '' } });
   const passwordInput = el('input', {
     attrs: { type: 'password', placeholder: 'Temporary password', autocomplete: 'new-password', required: '' },
   });
@@ -187,7 +199,9 @@ function renderUserForm() {
 
   form.append(
     el('h2', { text: 'Add family login' }),
-    nameInput,
+    firstNameInput,
+    lastNameInput,
+    usernameInput,
     passwordInput,
     el('button', { text: 'Create login', attrs: { type: 'submit' } }),
     message,
@@ -199,9 +213,11 @@ function renderUserForm() {
     try {
       await api('/api/users', {
         method: 'POST',
-        body: JSON.stringify({ name: nameInput.value, password: passwordInput.value }),
+        body: JSON.stringify({ firstName: firstNameInput.value, lastName: lastNameInput.value, username: usernameInput.value, password: passwordInput.value }),
       });
-      nameInput.value = '';
+      firstNameInput.value = '';
+      lastNameInput.value = '';
+      usernameInput.value = '';
       passwordInput.value = '';
       await refreshData();
       message.textContent = 'Family login created.';

@@ -37,10 +37,15 @@ export function saveState(state, storage = globalThis.localStorage) {
 }
 
 export function normalizeState(state) {
+  const users = Array.isArray(state?.users) ? state.users : [];
+
   return {
     ...createInitialState(),
     ...(state && typeof state === 'object' ? state : {}),
-    users: Array.isArray(state?.users) ? state.users : [],
+    users: users.map((user, index) => ({
+      ...user,
+      isAdmin: user.isAdmin ?? index === 0,
+    })),
     photos: Array.isArray(state?.photos) ? state.photos : [],
     events: Array.isArray(state?.events) ? state.events : [],
     milestones: Array.isArray(state?.milestones) ? state.milestones : [],
@@ -57,6 +62,10 @@ export function addUser(state, user, options = {}) {
   const nextUser = {
     id: user.id ?? createId('user'),
     name: user.name.trim(),
+    firstName: user.firstName?.trim(),
+    lastName: user.lastName?.trim(),
+    username: user.username?.trim(),
+    isAdmin: user.isAdmin ?? normalized.users.length === 0,
     passwordHash: user.passwordHash,
     salt: user.salt,
   };

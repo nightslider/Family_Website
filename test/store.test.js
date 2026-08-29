@@ -15,12 +15,19 @@ test('adding the first user signs them in', () => {
   const state = addUser(createInitialState(), {
     id: 'user-1',
     name: '  Casey  ',
+    firstName: ' Casey ',
+    lastName: ' Jones ',
+    username: ' caseyj ',
     salt: 'salt',
     passwordHash: 'hash',
   }, { autoSignIn: true });
 
   assert.equal(state.currentUserId, 'user-1');
   assert.equal(getCurrentUser(state).name, 'Casey');
+  assert.equal(getCurrentUser(state).firstName, 'Casey');
+  assert.equal(getCurrentUser(state).lastName, 'Jones');
+  assert.equal(getCurrentUser(state).username, 'caseyj');
+  assert.equal(getCurrentUser(state).isAdmin, true);
 });
 
 test('adding another user does not change the current user by default', () => {
@@ -39,6 +46,7 @@ test('adding another user does not change the current user by default', () => {
   });
 
   assert.equal(state.currentUserId, 'user-1');
+  assert.equal(state.users[1].isAdmin, false);
 });
 
 test('photos support comments and one reaction per user', () => {
