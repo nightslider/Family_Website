@@ -237,45 +237,6 @@ function renderPhotoForm() {
   const cameraFileInput = el('input', { attrs: { type: 'file', accept: 'image/*', capture: 'environment', 'aria-label': 'Take a photo with this device camera' } });
   const message = el('p', { className: 'form-message', attrs: { role: 'status' } });
   const submitButton = el('button', { text: 'Share photo', attrs: { type: 'submit' } });
-  let droppedFile = null;
-  const dropZone = el('div', {
-    className: 'photo-drop-zone',
-    text: 'Drop a photo here or select one from this device',
-    attrs: { role: 'button', tabindex: '0' },
-    on: {
-      click: () => libraryFileInput.click(),
-      keydown: (event) => {
-        if (event.key === 'Enter' || event.key === ' ') {
-          event.preventDefault();
-          libraryFileInput.click();
-        }
-      },
-      dragover: (event) => {
-        event.preventDefault();
-        dropZone.classList.add('dragging');
-      },
-      dragleave: () => dropZone.classList.remove('dragging'),
-      drop: (event) => {
-        event.preventDefault();
-        dropZone.classList.remove('dragging');
-        const file = event.dataTransfer.files[0];
-        if (!file?.type.startsWith('image/')) {
-          message.textContent = 'Drop an image file to upload it.';
-          return;
-        }
-        droppedFile = file;
-        dropZone.textContent = `Selected: ${file.name}`;
-      },
-    },
-  });
-  const googlePhotosButton = el('button', {
-    className: 'secondary',
-    attrs: { type: 'button' },
-    on: { click: () => importFromGooglePhotos(message, googlePhotosButton) },
-  }, [
-    el('img', { attrs: { src: 'img/google_photos.svg', alt: '' } }),
-    document.createTextNode('Add from Google Photos'),
-  ]);
 
   form.append(
     el('h2', { text: 'Upload a photo' }),
