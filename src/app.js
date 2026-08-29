@@ -236,6 +236,12 @@ function renderPhotoForm() {
   const fileInput = el('input', { attrs: { type: 'file', accept: 'image/*', required: '' } });
   const message = el('p', { className: 'form-message', attrs: { role: 'status' } });
   const submitButton = el('button', { text: 'Share photo', attrs: { type: 'submit' } });
+  const googlePhotosButton = el('button', {
+    className: 'secondary',
+    text: 'Import from Google Photos',
+    attrs: { type: 'button' },
+    on: { click: () => importFromGooglePhotos(message, googlePhotosButton) },
+  });
 
   form.append(
     el('h2', { text: 'Upload a photo' }),
@@ -243,6 +249,7 @@ function renderPhotoForm() {
     descriptionInput,
     fileInput,
     submitButton,
+    googlePhotosButton,
     message,
   );
 
@@ -276,6 +283,50 @@ function renderPhotoForm() {
   });
 
   return form;
+}
+
+async function importFromGooglePhotos(message, button) {
+  const pickerWindow = window.open('', 'googlePhotosPicker', 'popup,width=720,height=720');
+  if (!pickerWindow) {
+    message.textContent = 'Allow pop-ups to choose photos from Google Photos.';
+    return;
+  }
+
+  button.disabled = true;
+  try {
+    const result = await api('/api/google-photos/start', { method: 'POST' });
+    pickerWindow.location.href = result.authorizationUrl ?? `${result.pickerUri}/autoclose`;
+    message.textContent = 'Choose photos in the Google Photos window, then select Done.';
+    await waitForGooglePhotosSelection();
+    const imported = await api('/api/google-photos/import', { method: 'POST' });
+    await refreshData();
+    message.textContent = `${imported.imported} photo${imported.imported === 1 ? '' : 's'} imported.`;
+    render();
+  } catch (error) {
+    message.textContent = error.message;
+    button.disabled = false;
+  }
+}
+
+function waitForGooglePhotosSelection() {
+  return new Promise((resolve, reject) => {
+    const startedAt = Date.now();
+    const timer = window.setInterval(async () => {
+      try {
+        const status = await api('/api/google-photos/status');
+        if (status.ready) {
+          window.clearInterval(timer);
+          resolve();
+        } else if (Date.now() - startedAt > 15 * 60 * 1000) {
+          window.clearInterval(timer);
+          reject(new Error('Google Photos selection timed out.'));
+        }
+      } catch (error) {
+        window.clearInterval(timer);
+        reject(error);
+      }
+    }, 2000);
+  });
 }
 
 function renderTimelineForm(collectionName, heading, titlePlaceholder) {

@@ -18,6 +18,10 @@ const sessions = new Map();
 const reactions = ['❤️', '😂', '🎉', '🙏', '😍'];
 const publicFiles = new Set(['/index.html', '/src/app.js', '/src/store.js', '/src/styles.css']);
 const secureCookie = process.env.NODE_ENV === 'production' ? '; Secure' : '';
+const googlePhotosScope = 'https://www.googleapis.com/auth/photospicker.mediaitems.readonly';
+const googlePhotosRedirectUri = process.env.GOOGLE_REDIRECT_URI ?? `http://localhost:${port}/api/google-photos/callback`;
+const googleOAuthStates = new Map();
+const googlePhotoConnections = new Map();
 
 let state = loadData();
 
@@ -108,8 +112,110 @@ async function handleApi(request, response) {
     return;
   }
 
+  if (request.method === 'GET' && pathname === '/api/google-photos/callback') {
+    await completeGooglePhotosAuthorization(request, response);
+    return;
+  }
+
   if (!currentUser) {
     sendJson(response, 401, { error: 'Please log in.' });
+    return;
+  }
+
+  if (request.method === 'POST' && pathname === '/api/google-photos/start') {
+    if (!currentUser.isAdmin) {
+      sendJson(response, 403, { error: 'Only administrators can import photos.' });
+      return;
+    }
+
+    const sessionId = getCookies(request).family_session;
+    if (!sessionId || !googlePhotosConfigured()) {
+      sendJson(response, 503, { error: 'Google Photos import has not been configured.' });
+      return;
+    }
+
+    const connection = googlePhotoConnections.get(sessionId);
+    if (connection?.accessToken && connection.expiresAt > Date.now()) {
+      const picker = await createGooglePickerSession(connection.accessToken);
+      connection.pickerSessionId = picker.id;
+      sendJson(response, 200, { pickerUri: picker.pickerUri });
+      return;
+    }
+
+    const stateId = randomBytes(32).toString('hex');
+    googleOAuthStates.set(stateId, { sessionId, expiresAt: Date.now() + 10 * 60 * 1000 });
+    const authorizationUrl = new URL('https://accounts.google.com/o/oauth2/v2/auth');
+    authorizationUrl.searchParams.set('client_id', process.env.GOOGLE_CLIENT_ID);
+    authorizationUrl.searchParams.set('redirect_uri', googlePhotosRedirectUri);
+    authorizationUrl.searchParams.set('response_type', 'code');
+    authorizationUrl.searchParams.set('scope', googlePhotosScope);
+    authorizationUrl.searchParams.set('state', stateId);
+    authorizationUrl.searchParams.set('access_type', 'online');
+    authorizationUrl.searchParams.set('prompt', 'consent');
+    sendJson(response, 200, { authorizationUrl: authorizationUrl.toString() });
+    return;
+  }
+
+  if (request.method === 'GET' && pathname === '/api/google-photos/status') {
+    if (!currentUser.isAdmin) {
+      sendJson(response, 403, { error: 'Only administrators can import photos.' });
+      return;
+    }
+
+    const connection = googlePhotoConnections.get(getCookies(request).family_session);
+    if (!connection?.pickerSessionId) {
+      sendJson(response, 200, { ready: false });
+      return;
+    }
+
+    const picker = await googlePhotosRequest(`/v1/sessions/${connection.pickerSessionId}`, connection.accessToken);
+    if (!picker.mediaItemsSet) {
+      sendJson(response, 200, { ready: false });
+      return;
+    }
+
+    const mediaItems = await listGooglePickerMediaItems(connection);
+    sendJson(response, 200, { ready: true, count: mediaItems.length });
+    return;
+  }
+
+  if (request.method === 'POST' && pathname === '/api/google-photos/import') {
+    if (!currentUser.isAdmin) {
+      sendJson(response, 403, { error: 'Only administrators can import photos.' });
+      return;
+    }
+
+    const connection = googlePhotoConnections.get(getCookies(request).family_session);
+    if (!connection?.pickerSessionId) {
+      sendJson(response, 400, { error: 'Choose photos from Google Photos first.' });
+      return;
+    }
+
+    const mediaItems = await listGooglePickerMediaItems(connection);
+    let imported = 0;
+    for (const mediaItem of mediaItems) {
+      const mediaFile = mediaItem.mediaFile;
+      if (!mediaFile?.baseUrl || !mediaFile.mimeType?.startsWith('image/')) {
+        continue;
+      }
+
+      const imageResponse = await fetch(`${mediaFile.baseUrl}=w2048-h2048`);
+      if (!imageResponse.ok) {
+        continue;
+      }
+
+      const imageData = Buffer.from(await imageResponse.arrayBuffer()).toString('base64');
+      state = addPhoto(state, {
+        title: mediaFile.filename ?? 'Google Photo',
+        description: '',
+        imageData: `data:${mediaFile.mimeType};base64,${imageData}`,
+        uploadedBy: currentUser.name,
+      });
+      imported += 1;
+    }
+    connection.pickerSessionId = null;
+    saveData();
+    sendJson(response, 201, { imported });
     return;
   }
 
@@ -266,6 +372,81 @@ function accountDetails(body) {
   }
 
   return { firstName, lastName, username, name: `${firstName} ${lastName}` };
+}
+
+async function completeGooglePhotosAuthorization(request, response) {
+  const url = new URL(request.url, 'http://localhost');
+  const authorization = googleOAuthStates.get(url.searchParams.get('state'));
+  googleOAuthStates.delete(url.searchParams.get('state'));
+
+  if (!authorization || authorization.expiresAt < Date.now() || url.searchParams.has('error')) {
+    sendGooglePhotosCallback(response, 'Google Photos authorization was cancelled or expired.');
+    return;
+  }
+
+  const tokenResponse = await fetch('https://oauth2.googleapis.com/token', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({
+      code: url.searchParams.get('code') ?? '',
+      client_id: process.env.GOOGLE_CLIENT_ID,
+      client_secret: process.env.GOOGLE_CLIENT_SECRET,
+      redirect_uri: googlePhotosRedirectUri,
+      grant_type: 'authorization_code',
+    }),
+  });
+  const tokens = await tokenResponse.json();
+  if (!tokenResponse.ok || !tokens.access_token) {
+    sendGooglePhotosCallback(response, 'Google Photos authorization failed.');
+    return;
+  }
+
+  const picker = await createGooglePickerSession(tokens.access_token);
+  googlePhotoConnections.set(authorization.sessionId, {
+    accessToken: tokens.access_token,
+    expiresAt: Date.now() + (Number(tokens.expires_in ?? 3600) * 1000),
+    pickerSessionId: picker.id,
+  });
+  response.writeHead(302, { Location: `${picker.pickerUri}/autoclose` });
+  response.end();
+}
+
+function sendGooglePhotosCallback(response, message) {
+  response.writeHead(400, { 'Content-Type': 'text/html; charset=utf-8' });
+  response.end(`<!doctype html><title>Google Photos</title><p>${message}</p>`);
+}
+
+function googlePhotosConfigured() {
+  return Boolean(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET);
+}
+
+async function createGooglePickerSession(accessToken) {
+  return googlePhotosRequest('/v1/sessions', accessToken, { method: 'POST', body: '{}' });
+}
+
+async function listGooglePickerMediaItems(connection) {
+  const mediaItems = [];
+  let pageToken;
+  do {
+    const query = new URLSearchParams({ sessionId: connection.pickerSessionId, pageSize: '100' });
+    if (pageToken) query.set('pageToken', pageToken);
+    const page = await googlePhotosRequest(`/v1/mediaItems?${query}`, connection.accessToken);
+    mediaItems.push(...(page.mediaItems ?? []));
+    pageToken = page.nextPageToken;
+  } while (pageToken);
+  return mediaItems;
+}
+
+async function googlePhotosRequest(path, accessToken, options = {}) {
+  const response = await fetch(`https://photospicker.googleapis.com${path}`, {
+    ...options,
+    headers: { Authorization: `Bearer ${accessToken}`, ...(options.headers ?? {}) },
+  });
+  const payload = await response.json();
+  if (!response.ok) {
+    throw new Error(payload.error?.message ?? 'Google Photos request failed.');
+  }
+  return payload;
 }
 
 function hashPassword(password) {
